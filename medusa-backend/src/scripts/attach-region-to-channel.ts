@@ -15,7 +15,6 @@ export default async function checkAndCreateRegion({
   try {
     logger.info("Fetching regions...");
 
-    // Use listRegions instead
     const regions = await regionModule.listRegions();
 
     logger.info(`✅ Regions found: ${regions.length}`);
