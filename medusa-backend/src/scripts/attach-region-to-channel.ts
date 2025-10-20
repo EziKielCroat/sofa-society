@@ -1,5 +1,9 @@
 import { Modules } from "@medusajs/utils";
 
+// nediraj nepitaj neradi boga pitaj sta je sovin
+
+// 401 unauthorized error kadgod runnan ovu skriput makar iskoristia najnovije keyeve
+
 export default async function checkAndCreateRegion({
   container,
 }: {
