@@ -4,6 +4,8 @@ import { ContainerRegistrationKeys, Modules } from "@medusajs/utils";
 export default async function seedProducts({ container }: { container: any }) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
   const productModuleService = container.resolve(Modules.PRODUCT);
+  const salesChannelModuleService = container.resolve(Modules.SALES_CHANNEL);
+  const remoteLink = container.resolve("remoteLink");
 
   try {
     const collectionsToEnsure = [
@@ -42,6 +44,7 @@ export default async function seedProducts({ container }: { container: any }) {
         description:
           "Minimalistic designs, neutral colors, and high-quality textures. Perfect for those who seek comfort with a clean and understated aesthetic. This collection brings the essence of Scandinavian elegance to your living room.",
         collection_id: ensuredCollections["Modern Luxe"],
+        status: "published",
         options: [
           { title: "Material", values: ["Linen", "Velvet", "Cotton"] },
           { title: "Color", values: ["Dark Grey", "Light Grey", "Beige"] },
@@ -71,6 +74,7 @@ export default async function seedProducts({ container }: { container: any }) {
         description:
           "The Camden Retreat combines earthy textures and relaxed lines, creating the ultimate Boho Chic lounge experience.",
         collection_id: ensuredCollections["Boho Chic"],
+        status: "published",
         options: [
           { title: "Material", values: ["Linen", "Wool Blend"] },
           { title: "Color", values: ["Sand", "Terracotta"] },
@@ -95,6 +99,7 @@ export default async function seedProducts({ container }: { container: any }) {
         description:
           "A statement of Scandinavian Simplicity — neutral hues, lightweight structure, and refined lines for the modern home.",
         collection_id: ensuredCollections["Scandinavian Simplicity"],
+        status: "published",
         options: [
           { title: "Material", values: ["Cotton", "Velvet"] },
           { title: "Color", values: ["White", "Ash Grey"] },
@@ -122,6 +127,7 @@ export default async function seedProducts({ container }: { container: any }) {
         description:
           "Part of the Modern Luxe collection — the Sutton Royale sofa embodies elegance through bold minimalism and indulgent materials.",
         collection_id: ensuredCollections["Modern Luxe"],
+        status: "published",
         options: [
           { title: "Material", values: ["Velvet", "Linen"] },
           { title: "Color", values: ["Black", "Charcoal"] },
@@ -174,6 +180,51 @@ export default async function seedProducts({ container }: { container: any }) {
     });
 
     logger.info(`Seeded ${products.length} products successfully!`);
+
+    // Get the default sales channel
+    const salesChannels = await salesChannelModuleService.listSalesChannels({
+      name: "Default Sales Channel",
+    });
+
+    if (!salesChannels.length) {
+      logger.warn(
+        `⚠️  Default Sales Channel not found. Products not linked to any sales channel.`
+      );
+      return;
+    }
+
+    const defaultSalesChannel = salesChannels[0];
+    logger.info(`Linking products to "${defaultSalesChannel.name}"...`);
+
+    // Link all products (both new and existing) to the default sales channel
+    const allProducts = await productModuleService.listProducts(
+      { handle: productHandles },
+      {}
+    );
+
+    for (const product of allProducts) {
+      try {
+        await remoteLink.create([
+          {
+            [Modules.PRODUCT]: {
+              product_id: product.id,
+            },
+            [Modules.SALES_CHANNEL]: {
+              sales_channel_id: defaultSalesChannel.id,
+            },
+          },
+        ]);
+        logger.info(`Linked "${product.title}" to sales channel`);
+      } catch (err: any) {
+        if (err.message?.includes("already exists")) {
+          logger.info(`"${product.title}" already linked to sales channel`);
+        } else {
+          logger.warn(`Could not link "${product.title}": ${err.message}`);
+        }
+      }
+    }
+
+    logger.info(`🎉 All done!`);
   } catch (err) {
     logger.error(`Error seeding products:`, err);
     throw err;
